@@ -34,6 +34,7 @@ export type AssignmentFilters = {
   assignee: string;
   orgCodeStart: string;
   orgCodeEnd: string;
+  jkLidPrefix?: string;
 };
 
 export type SavedWork = {

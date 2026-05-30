@@ -96,7 +96,8 @@ function isAssignmentFilters(value: unknown): value is AssignmentFilters {
   return (
     typeof assignment.assignee === "string" &&
     typeof assignment.orgCodeStart === "string" &&
-    typeof assignment.orgCodeEnd === "string"
+    typeof assignment.orgCodeEnd === "string" &&
+    (assignment.jkLidPrefix === undefined || typeof assignment.jkLidPrefix === "string")
   );
 }
 
@@ -114,6 +115,28 @@ export default function CheckerClient({
   const [importMessage, setImportMessage] = useState("");
   const [rangeSplitCount, setRangeSplitCount] = useState(4);
   const activeRowRef = useRef<HTMLButtonElement | null>(null);
+
+  // Modal & URL Customization State
+  const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
+  const [draftPrefix, setDraftPrefix] = useState("");
+  const [recentPrefixes, setRecentPrefixes] = useState<string[]>([
+    "https://japanknowledge.com/lib/display/?lid=",
+    "https://japanknowledge.com/lib/search/?keyword=",
+  ]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("nk-gaiji-checker-recent-prefixes");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setRecentPrefixes(parsed);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
 
   const rangeSuggestions = useMemo(
     () => buildWeightedAssignmentRanges(records, rangeSplitCount),
@@ -183,6 +206,25 @@ export default function CheckerClient({
     value: AssignmentFilters[K],
   ) {
     setAssignment((current) => ({ ...current, [key]: value }));
+  }
+
+  function openUrlModal() {
+    setDraftPrefix(assignment.jkLidPrefix ?? "https://japanknowledge.com/lib/display/?lid=");
+    setIsUrlModalOpen(true);
+  }
+
+  function savePrefix(newPrefix: string) {
+    updateAssignment("jkLidPrefix", newPrefix);
+    const cleanedPrefix = newPrefix.trim();
+    if (cleanedPrefix) {
+      const updated = [
+        cleanedPrefix,
+        ...recentPrefixes.filter((prefix) => prefix !== cleanedPrefix),
+      ].slice(0, 5);
+      setRecentPrefixes(updated);
+      localStorage.setItem("nk-gaiji-checker-recent-prefixes", JSON.stringify(updated));
+    }
+    setIsUrlModalOpen(false);
   }
 
   function selectAssignmentRange(range: AssignmentRangeSuggestion) {
@@ -332,6 +374,7 @@ export default function CheckerClient({
           assignee: parsed.assignment.assignee,
           orgCodeStart: parsed.assignment.orgCodeStart,
           orgCodeEnd: parsed.assignment.orgCodeEnd,
+          jkLidPrefix: parsed.assignment.jkLidPrefix ?? "https://japanknowledge.com/lib/display/?lid=",
         });
         setImportMessage(`${file.name} を読み込みました`);
       } catch {
@@ -355,6 +398,7 @@ export default function CheckerClient({
             onAssignmentChange={updateAssignment}
             onRangeSelect={selectAssignmentRange}
             onRangeSplitCountChange={updateRangeSplitCount}
+            onEditPrefixClick={openUrlModal}
           />
 
           <ProgressPanel
@@ -371,6 +415,8 @@ export default function CheckerClient({
           <ActiveRecordPanel
             activeRecord={activeRecord}
             review={activeRecord ? reviews[activeRecord.id] : undefined}
+            jkLidPrefix={assignment.jkLidPrefix ?? "https://japanknowledge.com/lib/display/?lid="}
+            onEditPrefixClick={openUrlModal}
             onReviewChange={updateReview}
           />
 
@@ -385,6 +431,98 @@ export default function CheckerClient({
           />
         </section>
       </section>
+
+      {/* URL Customization Dialog Modal */}
+      {isUrlModalOpen && (
+        <div className="modal modal-open animate-fade-in z-50" role="dialog" aria-modal="true">
+          <div className="modal-box border border-base-300 shadow-xl max-w-lg bg-base-100 p-6 rounded-box">
+            <header className="mb-4">
+              <h3 className="text-xl font-bold">JK-LID URLプレフィックス設定</h3>
+              <p className="text-xs text-base-content/60 mt-1">
+                外字出現レコードの「JK-LID」リンクのURL前置文字列をカスタマイズできます。
+              </p>
+            </header>
+
+            <div className="form-control gap-2">
+              <label className="label py-0">
+                <span className="label-text font-bold">前置URL文字列</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full text-sm font-mono"
+                value={draftPrefix}
+                onChange={(e) => setDraftPrefix(e.target.value)}
+                placeholder="https://japanknowledge.com/lib/display/?lid="
+              />
+            </div>
+
+            {/* Presets Grid */}
+            <div className="mt-4">
+              <span className="text-xs font-bold text-base-content/60 block mb-2">
+                推奨プリセット：
+              </span>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline justify-start text-left truncate font-normal font-mono"
+                  onClick={() => setDraftPrefix("https://japanknowledge.com/lib/display/?lid=")}
+                >
+                  <span className="badge badge-sm badge-neutral shrink-0 mr-1.5 font-sans">官方標準</span>
+                  https://japanknowledge.com/lib/display/?lid=
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline justify-start text-left truncate font-normal font-mono"
+                  onClick={() => setDraftPrefix("https://japanknowledge.com/lib/search/?keyword=")}
+                >
+                  <span className="badge badge-sm badge-neutral shrink-0 mr-1.5 font-sans">直接検索</span>
+                  https://japanknowledge.com/lib/search/?keyword=
+                </button>
+              </div>
+            </div>
+
+            {/* Recent History */}
+            {recentPrefixes.length > 0 && (
+              <div className="mt-4">
+                <span className="text-xs font-bold text-base-content/60 block mb-2">
+                  最近使用したURL前綴り：
+                </span>
+                <div className="flex flex-col gap-2 max-h-36 overflow-auto">
+                  {recentPrefixes.map((prefix, idx) => (
+                    <button
+                      key={`${prefix}-${idx}`}
+                      type="button"
+                      className="btn btn-xs btn-ghost justify-start text-left truncate font-normal font-mono opacity-80 hover:opacity-100"
+                      onClick={() => setDraftPrefix(prefix)}
+                    >
+                      • {prefix}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="modal-action mt-6 gap-2">
+              <button
+                className="btn btn-outline min-w-20"
+                onClick={() => setIsUrlModalOpen(false)}
+                type="button"
+              >
+                キャンセル
+              </button>
+              <button
+                className="btn btn-primary min-w-20"
+                onClick={() => savePrefix(draftPrefix)}
+                type="button"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black/45 cursor-pointer backdrop-blur-[1px]" onClick={() => setIsUrlModalOpen(false)}></div>
+        </div>
+      )}
     </main>
   );
 }

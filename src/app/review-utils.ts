@@ -10,6 +10,7 @@ export const initialAssignment: AssignmentFilters = {
   assignee: "",
   orgCodeStart: "",
   orgCodeEnd: "",
+  jkLidPrefix: "https://japanknowledge.com/lib/display/?lid=",
 };
 
 export function downloadJson(filename: string, value: unknown) {

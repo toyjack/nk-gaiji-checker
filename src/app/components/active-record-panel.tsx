@@ -7,6 +7,8 @@ import ShortcutHints from "./shortcut-hints";
 type ActiveRecordPanelProps = {
   activeRecord?: GaijiRecord;
   review?: ReviewEntry;
+  jkLidPrefix: string;
+  onEditPrefixClick: () => void;
   onReviewChange: (recordId: string, patch: Partial<ReviewEntry>) => void;
 };
 
@@ -18,8 +20,8 @@ function glyphWikiPageUrl(unicode: string) {
   return `https://glyphwiki.org/wiki/u${unicode.replace("U+", "").toLowerCase()}`;
 }
 
-function japanKnowledgeUrl(jkLid: string) {
-  return `https://japanknowledge.com/lib/display/?lid=${jkLid}`;
+function japanKnowledgeUrl(prefix: string, jkLid: string) {
+  return `${prefix}${jkLid}`;
 }
 
 function judgmentButtonClass(judgment: Judgment, selected: boolean) {
@@ -51,17 +53,22 @@ function DetailItem({
   value,
   href,
   strong = false,
+  actions,
 }: {
   label: string;
   value: string | number;
   href?: string;
   strong?: boolean;
+  actions?: React.ReactNode;
 }) {
   const displayValue = recordValue(String(value));
 
   return (
     <div className="min-w-0 border-b border-base-300 py-2">
-      <dt className="text-xs font-bold text-base-content/60">{label}</dt>
+      <dt className="flex items-center justify-between">
+        <span className="text-xs font-bold text-base-content/60">{label}</span>
+        {actions}
+      </dt>
       <dd
         className={
           strong
@@ -89,6 +96,8 @@ function DetailItem({
 export default function ActiveRecordPanel({
   activeRecord,
   review,
+  jkLidPrefix,
+  onEditPrefixClick,
   onReviewChange,
 }: ActiveRecordPanelProps) {
   const [occurrencePageState, setOccurrencePageState] = useState({
@@ -122,7 +131,7 @@ export default function ActiveRecordPanel({
       <div className="card-body overflow-auto">
         {activeRecord ? (
           <>
-            <header className="flex flex-col gap-3 flex-row justify-between">
+            <header className="flex flex-col gap-3 sm:flex-row justify-between">
               <div className="min-w-0">
                 <h2 className="mt-1 truncate text-2xl font-bold">
                   {activeRecord.gid}
@@ -132,7 +141,7 @@ export default function ActiveRecordPanel({
                     ORGCODE {activeRecord.orgCode}
                   </span>
                   <span className="badge badge-outline">
-                     {activeRecord.unicode}
+                    UNICODE {activeRecord.unicode}
                   </span>
                 </div>
               </div>
@@ -268,7 +277,16 @@ export default function ActiveRecordPanel({
                           <DetailItem
                             label="JK-LID"
                             value={occurrence.jkLid}
-                            href={japanKnowledgeUrl(occurrence.jkLid)}
+                            href={japanKnowledgeUrl(jkLidPrefix, occurrence.jkLid)}
+                            actions={
+                              <button
+                                className="link link-primary text-[10px] font-bold"
+                                onClick={onEditPrefixClick}
+                                type="button"
+                              >
+                                ⚙️ 設定
+                              </button>
+                            }
                           />
                           <DetailItem
                             label="見出し仮名表記"
