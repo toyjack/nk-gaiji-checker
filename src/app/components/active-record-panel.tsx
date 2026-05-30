@@ -122,7 +122,7 @@ export default function ActiveRecordPanel({
       <div className="card-body overflow-auto">
         {activeRecord ? (
           <>
-            <header className="flex flex-col gap-3 flex-row justify-between">
+            <header className="flex gap-3 justify-between">
               <div className="min-w-0">
                 <h2 className="mt-1 truncate text-2xl font-bold">
                   {activeRecord.gid}
