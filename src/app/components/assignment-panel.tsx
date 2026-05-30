@@ -18,6 +18,7 @@ type AssignmentPanelProps = {
   ) => void;
   onRangeSelect: (range: AssignmentRangeSuggestion) => void;
   onRangeSplitCountChange: (count: number) => void;
+  onEditPrefixClick: () => void;
 };
 
 export default function AssignmentPanel({
@@ -27,6 +28,7 @@ export default function AssignmentPanel({
   onAssignmentChange,
   onRangeSelect,
   onRangeSplitCountChange,
+  onEditPrefixClick,
 }: AssignmentPanelProps) {
   return (
     <section className="card max-h-[calc(100dvh-2rem)] overflow-hidden border border-base-300 bg-base-100 shadow-sm xl:max-h-[calc(100dvh-8rem)]">
@@ -67,6 +69,25 @@ export default function AssignmentPanel({
             />
           </label>
         </div>
+        <label className="form-control">
+          <span className="label-text font-bold">JK-LID URLプレフィックス</span>
+          <div className="join w-full">
+            <input
+              className="input input-bordered join-item w-full flex-1 cursor-pointer truncate"
+              value={assignment.jkLidPrefix ?? ""}
+              readOnly
+              onClick={onEditPrefixClick}
+              placeholder="https://japanknowledge.com/lib/display/?lid="
+            />
+            <button
+              className="btn btn-primary join-item shrink-0 text-xs sm:text-sm"
+              onClick={onEditPrefixClick}
+              type="button"
+            >
+              設定
+            </button>
+          </div>
+        </label>
         <div className="divider my-1" />
         <div className="grid gap-2">
           <label className="form-control">
