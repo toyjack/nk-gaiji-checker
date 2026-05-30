@@ -70,7 +70,7 @@ export default function AssignmentPanel({
           </label>
         </div>
         <label className="form-control">
-          <span className="label-text font-bold">JK-LID URLプレフィックス</span>
+          <span className="label-text font-bold">ジャパンナレッジURLプレフィックス</span>
           <div className="join w-full">
             <input
               className="input input-bordered join-item w-full flex-1 cursor-pointer truncate"

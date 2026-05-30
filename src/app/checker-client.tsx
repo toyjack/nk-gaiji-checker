@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useAtom } from "jotai";
 import ActiveRecordPanel from "./components/active-record-panel";
 import AssignmentPanel, {
   AssignmentRangeSuggestion,
@@ -15,6 +16,13 @@ import AssignmentPanel, {
 import ProgressPanel from "./components/progress-panel";
 import RecordListPanel from "./components/record-list-panel";
 import TopBar from "./components/top-bar";
+import {
+  draftPrefixAtom,
+  isUrlModalOpenAtom,
+  jkUrlPrefixAtom,
+  recentPrefixesAtom,
+  DEFAULT_JK_URL_PREFIX,
+} from "./jotai-utils";
 import {
   AssignmentFilters,
   GaijiRecord,
@@ -116,27 +124,11 @@ export default function CheckerClient({
   const [rangeSplitCount, setRangeSplitCount] = useState(4);
   const activeRowRef = useRef<HTMLButtonElement | null>(null);
 
-  // Modal & URL Customization State
-  const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
-  const [draftPrefix, setDraftPrefix] = useState("");
-  const [recentPrefixes, setRecentPrefixes] = useState<string[]>([
-    "https://japanknowledge.com/lib/display/?lid=",
-    "https://japanknowledge.com/lib/search/?keyword=",
-  ]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("nk-gaiji-checker-recent-prefixes");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setRecentPrefixes(parsed);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
+  // Modal & URL Customization State (Jotai)
+  const [jkUrlPrefix, setJkUrlPrefix] = useAtom(jkUrlPrefixAtom);
+  const [recentPrefixes, setRecentPrefixes] = useAtom(recentPrefixesAtom);
+  const [isUrlModalOpen, setIsUrlModalOpen] = useAtom(isUrlModalOpenAtom);
+  const [draftPrefix, setDraftPrefix] = useAtom(draftPrefixAtom);
 
   const rangeSuggestions = useMemo(
     () => buildWeightedAssignmentRanges(records, rangeSplitCount),
@@ -209,21 +201,16 @@ export default function CheckerClient({
   }
 
   function openUrlModal() {
-    setDraftPrefix(assignment.jkLidPrefix ?? "https://japanknowledge.com/lib/display/?lid=");
+    setDraftPrefix(jkUrlPrefix);
     setIsUrlModalOpen(true);
   }
 
   function savePrefix(newPrefix: string) {
-    updateAssignment("jkLidPrefix", newPrefix);
-    const cleanedPrefix = newPrefix.trim();
-    if (cleanedPrefix) {
-      const updated = [
-        cleanedPrefix,
-        ...recentPrefixes.filter((prefix) => prefix !== cleanedPrefix),
-      ].slice(0, 5);
-      setRecentPrefixes(updated);
-      localStorage.setItem("nk-gaiji-checker-recent-prefixes", JSON.stringify(updated));
-    }
+    const effectivePrefix = newPrefix.trim() || DEFAULT_JK_URL_PREFIX;
+    setJkUrlPrefix(effectivePrefix);
+    setRecentPrefixes(
+      [effectivePrefix, ...recentPrefixes.filter((p) => p !== effectivePrefix)].slice(0, 5),
+    );
     setIsUrlModalOpen(false);
   }
 
@@ -346,7 +333,7 @@ export default function CheckerClient({
       version: 1,
       sourceFile,
       exportedAt: now.toISOString(),
-      assignment,
+      assignment: { ...assignment, jkLidPrefix: jkUrlPrefix },
       reviews,
     };
     const assignee = sanitizeFilenamePart(assignment.assignee);
@@ -374,8 +361,8 @@ export default function CheckerClient({
           assignee: parsed.assignment.assignee,
           orgCodeStart: parsed.assignment.orgCodeStart,
           orgCodeEnd: parsed.assignment.orgCodeEnd,
-          jkLidPrefix: parsed.assignment.jkLidPrefix ?? "https://japanknowledge.com/lib/display/?lid=",
         });
+        setJkUrlPrefix(parsed.assignment.jkLidPrefix || DEFAULT_JK_URL_PREFIX);
         setImportMessage(`${file.name} を読み込みました`);
       } catch {
         setImportMessage("JSON の読み込みに失敗しました");
@@ -415,8 +402,6 @@ export default function CheckerClient({
           <ActiveRecordPanel
             activeRecord={activeRecord}
             review={activeRecord ? reviews[activeRecord.id] : undefined}
-            jkLidPrefix={assignment.jkLidPrefix ?? "https://japanknowledge.com/lib/display/?lid="}
-            onEditPrefixClick={openUrlModal}
             onReviewChange={updateReview}
           />
 
@@ -437,7 +422,7 @@ export default function CheckerClient({
         <div className="modal modal-open animate-fade-in z-50" role="dialog" aria-modal="true">
           <div className="modal-box border border-base-300 shadow-xl max-w-lg bg-base-100 p-6 rounded-box">
             <header className="mb-4">
-              <h3 className="text-xl font-bold">JK-LID URLプレフィックス設定</h3>
+              <h3 className="text-xl font-bold">ジャパンナレッジURLプレフィックス設定</h3>
               <p className="text-xs text-base-content/60 mt-1">
                 外字出現レコードの「JK-LID」リンクのURL前置文字列をカスタマイズできます。
               </p>
@@ -467,16 +452,16 @@ export default function CheckerClient({
                   className="btn btn-sm btn-outline justify-start text-left truncate font-normal font-mono"
                   onClick={() => setDraftPrefix("https://japanknowledge.com/lib/display/?lid=")}
                 >
-                  <span className="badge badge-sm badge-neutral shrink-0 mr-1.5 font-sans">官方標準</span>
+                  <span className="badge badge-sm badge-neutral shrink-0 mr-1.5 font-sans">組織アカウント</span>
                   https://japanknowledge.com/lib/display/?lid=
                 </button>
                 <button
                   type="button"
                   className="btn btn-sm btn-outline justify-start text-left truncate font-normal font-mono"
-                  onClick={() => setDraftPrefix("https://japanknowledge.com/lib/search/?keyword=")}
+                  onClick={() => setDraftPrefix("https://japanknowledge.com/psnl/display/?lid=")}
                 >
-                  <span className="badge badge-sm badge-neutral shrink-0 mr-1.5 font-sans">直接検索</span>
-                  https://japanknowledge.com/lib/search/?keyword=
+                  <span className="badge badge-sm badge-neutral shrink-0 mr-1.5 font-sans">個人アカウント</span>
+                  https://japanknowledge.com/psnl/display/?lid=
                 </button>
               </div>
             </div>

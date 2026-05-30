@@ -3,12 +3,12 @@ import { useMemo, useState } from "react";
 import { GaijiRecord, Judgment, ReviewEntry } from "../review-types";
 import { judgmentLabels } from "../review-utils";
 import ShortcutHints from "./shortcut-hints";
+import {useAtom} from "jotai";
+import { jkUrlPrefixAtom } from "../jotai-utils";
 
 type ActiveRecordPanelProps = {
   activeRecord?: GaijiRecord;
   review?: ReviewEntry;
-  jkLidPrefix: string;
-  onEditPrefixClick: () => void;
   onReviewChange: (recordId: string, patch: Partial<ReviewEntry>) => void;
 };
 
@@ -18,10 +18,6 @@ function glyphWikiSvgUrl(unicode: string) {
 
 function glyphWikiPageUrl(unicode: string) {
   return `https://glyphwiki.org/wiki/u${unicode.replace("U+", "").toLowerCase()}`;
-}
-
-function japanKnowledgeUrl(prefix: string, jkLid: string) {
-  return `${prefix}${jkLid}`;
 }
 
 function judgmentButtonClass(judgment: Judgment, selected: boolean) {
@@ -96,14 +92,14 @@ function DetailItem({
 export default function ActiveRecordPanel({
   activeRecord,
   review,
-  jkLidPrefix,
-  onEditPrefixClick,
   onReviewChange,
 }: ActiveRecordPanelProps) {
   const [occurrencePageState, setOccurrencePageState] = useState({
     recordId: "",
     page: 0,
   });
+
+  const [jkUrlPrefix] = useAtom(jkUrlPrefixAtom);
 
   const occurrencePages = useMemo(() => {
     if (!activeRecord) {
@@ -277,16 +273,7 @@ export default function ActiveRecordPanel({
                           <DetailItem
                             label="JK-LID"
                             value={occurrence.jkLid}
-                            href={japanKnowledgeUrl(jkLidPrefix, occurrence.jkLid)}
-                            actions={
-                              <button
-                                className="link link-primary text-[10px] font-bold"
-                                onClick={onEditPrefixClick}
-                                type="button"
-                              >
-                                ⚙️ 設定
-                              </button>
-                            }
+                            href={`${jkUrlPrefix}${occurrence.jkLid}`}
                           />
                           <DetailItem
                             label="見出し仮名表記"
