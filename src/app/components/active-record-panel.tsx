@@ -5,6 +5,12 @@ import { judgmentLabels } from "../review-utils";
 import ShortcutHints from "./shortcut-hints";
 import {useAtom} from "jotai";
 import { jkUrlPrefixAtom } from "../jotai-utils";
+import {
+  GlyphSource,
+  glyphSourceLabels,
+  glyphWikiPageUrl,
+  glyphWikiSvgUrl,
+} from "../glyphwiki-utils";
 
 type ActiveRecordPanelProps = {
   activeRecord?: GaijiRecord;
@@ -12,27 +18,7 @@ type ActiveRecordPanelProps = {
   onReviewChange: (recordId: string, patch: Partial<ReviewEntry>) => void;
 };
 
-type GlyphSource = "g" | "j" | "k" | "t" | "v";
-
 const SHOW_GLYPH_SOURCE_SELECTOR = false;
-
-const glyphSourceLabels: Record<GlyphSource, string> = {
-  j: "J源",
-  g: "G源",
-  t: "T源",
-  k: "K源",
-  v: "V源",
-};
-
-function glyphWikiSvgUrl(unicode: string, source?: GlyphSource) {
-  const base = `u${unicode.replace("U+", "").toLowerCase()}`;
-  return `https://glyphwiki.org/glyph/${source ? `${base}-${source}` : base}.svg`;
-}
-
-function glyphWikiPageUrl(unicode: string, source?: GlyphSource) {
-  const base = `u${unicode.replace("U+", "").toLowerCase()}`;
-  return `https://glyphwiki.org/wiki/${source ? `${base}-${source}` : base}`;
-}
 
 function judgmentButtonClass(judgment: Judgment, selected: boolean) {
   if (!selected) {

@@ -5,6 +5,7 @@ import {
   ReviewStatusFilter,
 } from "../review-types";
 import { judgmentLabels } from "../review-utils";
+import { glyphWikiSvgUrl } from "../glyphwiki-utils";
 
 type RecordListPanelProps = {
   activeRecord?: GaijiRecord;
@@ -61,8 +62,12 @@ export default function RecordListPanel({
                 onClick={() => onActiveRecordChange(record.id)}
                 type="button"
               >
-                <span className="grid h-10 w-10 place-items-center rounded-field bg-base-200 font-serif text-[28px]">
-                  {record.glyphText}
+                <span className="grid h-10 w-10 place-items-center rounded-field bg-base-200">
+                  <img
+                    className="max-h-9 max-w-9 object-contain"
+                    src={glyphWikiSvgUrl(record.unicode)}
+                    alt={record.glyphText}
+                  />
                 </span>
                 <span className="min-w-0">
                   <strong className="block truncate">{record.entryKana || "-"}</strong>
