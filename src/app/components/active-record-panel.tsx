@@ -12,12 +12,26 @@ type ActiveRecordPanelProps = {
   onReviewChange: (recordId: string, patch: Partial<ReviewEntry>) => void;
 };
 
-function glyphWikiSvgUrl(unicode: string) {
-  return `https://glyphwiki.org/glyph/u${unicode.replace("U+", "").toLowerCase()}.svg`;
+type GlyphSource = "g" | "j" | "k" | "t" | "v";
+
+const SHOW_GLYPH_SOURCE_SELECTOR = false;
+
+const glyphSourceLabels: Record<GlyphSource, string> = {
+  j: "J源",
+  g: "G源",
+  t: "T源",
+  k: "K源",
+  v: "V源",
+};
+
+function glyphWikiSvgUrl(unicode: string, source?: GlyphSource) {
+  const base = `u${unicode.replace("U+", "").toLowerCase()}`;
+  return `https://glyphwiki.org/glyph/${source ? `${base}-${source}` : base}.svg`;
 }
 
-function glyphWikiPageUrl(unicode: string) {
-  return `https://glyphwiki.org/wiki/u${unicode.replace("U+", "").toLowerCase()}`;
+function glyphWikiPageUrl(unicode: string, source?: GlyphSource) {
+  const base = `u${unicode.replace("U+", "").toLowerCase()}`;
+  return `https://glyphwiki.org/wiki/${source ? `${base}-${source}` : base}`;
 }
 
 function judgmentButtonClass(judgment: Judgment, selected: boolean) {
@@ -99,6 +113,11 @@ export default function ActiveRecordPanel({
     page: 0,
   });
 
+  const [glyphSourceState, setGlyphSourceState] = useState<{
+    recordId: string;
+    source: GlyphSource;
+  }>({ recordId: "", source: "j" });
+
   const [jkUrlPrefix] = useAtom(jkUrlPrefixAtom);
 
   const occurrencePages = useMemo(() => {
@@ -121,6 +140,11 @@ export default function ActiveRecordPanel({
       : 0;
   const visibleOccurrences = occurrencePages[activeOccurrencePage] ?? [];
   const declaredRecordsCount = activeRecord?.recordsCount ?? 0;
+
+  const activeGlyphSource =
+    glyphSourceState.recordId === activeRecord?.id
+      ? glyphSourceState.source
+      : "j";
 
   return (
     <section className="card max-h-[calc(100dvh-2rem)] overflow-hidden border border-base-300 bg-base-100 shadow-sm xl:max-h-[calc(100dvh-8rem)]">
@@ -152,19 +176,50 @@ export default function ActiveRecordPanel({
             <div className="mt-[18px] grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
               <div className="grid min-h-[190px] content-center justify-items-center rounded-box border border-base-300 bg-base-200 p-5">
                 <span className="text-xs font-bold text-base-content/60">
-                  Unicode字形（GlyphWiki）
+                  Unicode字形（GlyphWiki・{glyphSourceLabels[activeGlyphSource]}）
                 </span>
                 <Link
-                  href={glyphWikiPageUrl(activeRecord.unicode)}
+                  href={glyphWikiPageUrl(activeRecord.unicode, activeGlyphSource)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <img
                     className="max-w-full object-contain"
-                    src={glyphWikiSvgUrl(activeRecord.unicode)}
+                    src={glyphWikiSvgUrl(activeRecord.unicode, activeGlyphSource)}
                     alt={activeRecord.glyphText}
                   />
                 </Link>
+                {SHOW_GLYPH_SOURCE_SELECTOR ? (
+                  <div className="mt-2 flex gap-3">
+                    {(["j", "g", "t", "k", "v"] as GlyphSource[]).map((source) => (
+                      <div key={source} className="grid justify-items-center">
+                        <span className="text-[10px] font-bold text-base-content/50">
+                          {glyphSourceLabels[source]}
+                        </span>
+                        <button
+                          type="button"
+                          className={
+                            activeGlyphSource === source
+                              ? "rounded-box ring-2 ring-primary"
+                              : "rounded-box ring-1 ring-base-300"
+                          }
+                          onClick={() =>
+                            setGlyphSourceState({
+                              recordId: activeRecord.id,
+                              source,
+                            })
+                          }
+                        >
+                          <img
+                            className="h-8 w-8 object-contain"
+                            src={glyphWikiSvgUrl(activeRecord.unicode, source)}
+                            alt={`${activeRecord.glyphText} ${glyphSourceLabels[source]}`}
+                          />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
               <div className="grid min-h-[190px] content-center justify-items-center rounded-box border border-base-300 bg-base-200 p-5">
                 <span className="text-xs font-bold text-base-content/60">
