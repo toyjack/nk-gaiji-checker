@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { GaijiRecord, Judgment, ReviewEntry } from "../review-types";
 import { judgmentLabels } from "../review-utils";
 import ShortcutHints from "./shortcut-hints";
@@ -105,6 +105,12 @@ export default function ActiveRecordPanel({
   }>({ recordId: "", source: "j" });
   const [failedJUnicode, setFailedJUnicode] = useState<string | null>(null);
   const [missingImageOrgCode, setMissingImageOrgCode] = useState<string | null>(null);
+  const lastJudgmentClick = useRef<{
+    recordId: string;
+    time: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const [jkUrlPrefix] = useAtom(jkUrlPrefixAtom);
 
@@ -161,6 +167,41 @@ export default function ActiveRecordPanel({
 
     return () => controller.abort();
   }, [activeRecord?.unicode, activeGlyphSource, failedJUnicode]);
+
+  function handleJudgmentClick(
+    event: MouseEvent<HTMLButtonElement>,
+    judgment: Judgment,
+  ) {
+    if (!activeRecord) {
+      return;
+    }
+
+    if (event.detail === 0) {
+      onReviewChange(activeRecord.id, { judgment });
+      return;
+    }
+
+    const previous = lastJudgmentClick.current;
+    const now = event.timeStamp;
+    const repeatedAtSamePosition =
+      previous &&
+      previous.recordId !== activeRecord.id &&
+      now - previous.time < 1000 &&
+      Math.abs(event.clientX - previous.x) < 20 &&
+      Math.abs(event.clientY - previous.y) < 20;
+
+    if (event.detail > 1 || repeatedAtSamePosition) {
+      return;
+    }
+
+    lastJudgmentClick.current = {
+      recordId: activeRecord.id,
+      time: now,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    onReviewChange(activeRecord.id, { judgment });
+  }
 
   return (
     <section className="card max-h-[calc(100dvh-2rem)] overflow-hidden border border-base-300 bg-base-100 shadow-sm xl:max-h-[calc(100dvh-8rem)]">
@@ -271,7 +312,7 @@ export default function ActiveRecordPanel({
                     judgment,
                     review?.judgment === judgment,
                   )}
-                  onClick={() => onReviewChange(activeRecord.id, { judgment })}
+                  onClick={(event) => handleJudgmentClick(event, judgment)}
                   type="button"
                 >
                   {judgmentLabels[judgment]}
