@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GaijiRecord, Judgment, ReviewEntry } from "../review-types";
 import { judgmentLabels } from "../review-utils";
 import ShortcutHints from "./shortcut-hints";
@@ -136,6 +136,31 @@ export default function ActiveRecordPanel({
   const useDefaultGlyph =
     activeGlyphSource === "j" && failedJUnicode === activeRecord?.unicode;
   const displayedGlyphSource = useDefaultGlyph ? undefined : activeGlyphSource;
+
+  useEffect(() => {
+    const unicode = activeRecord?.unicode;
+    if (!unicode || activeGlyphSource !== "j" || failedJUnicode === unicode) {
+      return;
+    }
+
+    const controller = new AbortController();
+    fetch(glyphWikiSvgUrl(unicode, "j"), {
+      method: "HEAD",
+      signal: controller.signal,
+    })
+      .then((response) => {
+        if (!response.ok) {
+          setFailedJUnicode(unicode);
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setFailedJUnicode(unicode);
+        }
+      });
+
+    return () => controller.abort();
+  }, [activeRecord?.unicode, activeGlyphSource, failedJUnicode]);
 
   return (
     <section className="card max-h-[calc(100dvh-2rem)] overflow-hidden border border-base-300 bg-base-100 shadow-sm xl:max-h-[calc(100dvh-8rem)]">
