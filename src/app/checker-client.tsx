@@ -166,9 +166,7 @@ export default function CheckerClient({
 
   const activeRecord =
     visibleRecords.find((record) => record.id === activeId) ??
-    visibleRecords[0] ??
-    assignedRecords[0] ??
-    records[0];
+    visibleRecords[0];
 
   const progress = useMemo(() => {
     const judged = assignedRecords.filter(

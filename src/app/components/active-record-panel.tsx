@@ -103,6 +103,7 @@ export default function ActiveRecordPanel({
     recordId: string;
     source: GlyphSource;
   }>({ recordId: "", source: "j" });
+  const [missingImageOrgCode, setMissingImageOrgCode] = useState<string | null>(null);
 
   const [jkUrlPrefix] = useAtom(jkUrlPrefixAtom);
 
@@ -211,11 +212,18 @@ export default function ActiveRecordPanel({
                 <span className="text-xs font-bold text-base-content/60">
                   現在字形
                 </span>
-                <img
-                  className="h-32 max-w-full object-contain"
-                  src={`/images/${activeRecord.orgCode}.gif`}
-                  alt={activeRecord.orgCode}
-                />
+                {missingImageOrgCode === activeRecord.orgCode ? (
+                  <span className="text-sm text-base-content/60" role="status">
+                    画像がありません
+                  </span>
+                ) : (
+                  <img
+                    className="h-32 max-w-full object-contain"
+                    src={`/images/${activeRecord.orgCode}.gif`}
+                    alt={activeRecord.orgCode}
+                    onError={() => setMissingImageOrgCode(activeRecord.orgCode)}
+                  />
+                )}
               </div>
             </div>
 
@@ -341,7 +349,7 @@ export default function ActiveRecordPanel({
           </>
         ) : (
           <div className="grid min-h-[360px] place-items-center text-base-content/60">
-            表示できるデータがありません
+            条件に一致するデータがありません
           </div>
         )}
       </div>
