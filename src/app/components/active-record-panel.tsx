@@ -103,6 +103,7 @@ export default function ActiveRecordPanel({
     recordId: string;
     source: GlyphSource;
   }>({ recordId: "", source: "j" });
+  const [failedJUnicode, setFailedJUnicode] = useState<string | null>(null);
   const [missingImageOrgCode, setMissingImageOrgCode] = useState<string | null>(null);
 
   const [jkUrlPrefix] = useAtom(jkUrlPrefixAtom);
@@ -132,6 +133,9 @@ export default function ActiveRecordPanel({
     glyphSourceState.recordId === activeRecord?.id
       ? glyphSourceState.source
       : "j";
+  const useDefaultGlyph =
+    activeGlyphSource === "j" && failedJUnicode === activeRecord?.unicode;
+  const displayedGlyphSource = useDefaultGlyph ? undefined : activeGlyphSource;
 
   return (
     <section className="card max-h-[calc(100dvh-2rem)] overflow-hidden border border-base-300 bg-base-100 shadow-sm xl:max-h-[calc(100dvh-8rem)]">
@@ -163,17 +167,22 @@ export default function ActiveRecordPanel({
             <div className="mt-[18px] grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
               <div className="grid min-h-[190px] content-center justify-items-center rounded-box border border-base-300 bg-base-200 p-5">
                 <span className="text-xs font-bold text-base-content/60">
-                  Unicode字形（GlyphWiki・{glyphSourceLabels[activeGlyphSource]}）
+                  Unicode字形（GlyphWiki・{useDefaultGlyph ? "既定源" : glyphSourceLabels[activeGlyphSource]}）
                 </span>
                 <Link
-                  href={glyphWikiPageUrl(activeRecord.unicode, activeGlyphSource)}
+                  href={glyphWikiPageUrl(activeRecord.unicode, displayedGlyphSource)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <img
                     className="max-w-full object-contain"
-                    src={glyphWikiSvgUrl(activeRecord.unicode, activeGlyphSource)}
+                    src={glyphWikiSvgUrl(activeRecord.unicode, displayedGlyphSource)}
                     alt={activeRecord.glyphText}
+                    onError={() => {
+                      if (activeGlyphSource === "j" && !useDefaultGlyph) {
+                        setFailedJUnicode(activeRecord.unicode);
+                      }
+                    }}
                   />
                 </Link>
                 {SHOW_GLYPH_SOURCE_SELECTOR ? (
