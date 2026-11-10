@@ -24,9 +24,27 @@ export type GaijiRecord = {
 
 export type Judgment = "suitable" | "unsuitable" | "uncertain";
 
+export type GlyphAnnotationImage = "gif" | "png";
+
+export type GlyphAnnotationCategory = "shape" | "blurry" | "other";
+
+/** Rectangle marked on a current-glyph image. Coordinates are 0..1, relative to the image content. */
+export type GlyphAnnotation = {
+  id: string;
+  image: GlyphAnnotationImage;
+  category: GlyphAnnotationCategory;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type AnnotationFilter = "all" | "annotated" | "unannotated";
+
 export type ReviewEntry = {
   judgment?: Judgment;
   note: string;
+  annotations?: GlyphAnnotation[];
   updatedAt?: string;
 };
 

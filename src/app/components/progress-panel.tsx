@@ -7,6 +7,7 @@ type ProgressPanelProps = {
   progress: ProgressSummary;
   sourceFiles: string[];
   onExport: () => void;
+  onExportCsv: () => void;
   onImport: (event: ChangeEvent<HTMLInputElement>) => void;
 };
 
@@ -16,6 +17,7 @@ export default function ProgressPanel({
   progress,
   sourceFiles,
   onExport,
+  onExportCsv,
   onImport,
 }: ProgressPanelProps) {
   return (
@@ -58,6 +60,9 @@ export default function ProgressPanel({
               onChange={onImport}
             />
           </label>
+          <button className="btn btn-outline col-span-2" type="button" onClick={onExportCsv}>
+            CSV 出力
+          </button>
         </div>
         {importMessage ? <p className="text-sm text-base-content/70">{importMessage}</p> : null}
         <p className="text-xs leading-relaxed text-base-content/60">

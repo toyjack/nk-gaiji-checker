@@ -1,7 +1,16 @@
 import Link from "next/link";
-import { MouseEvent, useEffect, useId, useMemo, useRef, useState } from "react";
-import { GaijiRecord, Judgment, ReviewEntry } from "../review-types";
+import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  GaijiRecord,
+  GlyphAnnotation,
+  GlyphAnnotationCategory,
+  GlyphAnnotationImage,
+  Judgment,
+  ReviewEntry,
+} from "../review-types";
 import { judgmentLabels } from "../review-utils";
+import AnnotatableImage from "./annotatable-image";
+import AnnotationControls from "./annotation-controls";
 import ShortcutHints from "./shortcut-hints";
 import {useAtom} from "jotai";
 import { jkUrlPrefixAtom } from "../jotai-utils";
@@ -20,6 +29,10 @@ type ActiveRecordPanelProps = {
 
 const SHOW_GLYPH_SOURCE_SELECTOR = false;
 
+// Shared frame for the reference glyph and the current glyph so both columns line up.
+const glyphBoxClass =
+  "grid h-60 content-center justify-items-center rounded-box border border-base-300 bg-base-200 p-4";
+
 function judgmentButtonClass(judgment: Judgment, selected: boolean) {
   if (!selected) {
     return "btn btn-outline";
@@ -32,6 +45,10 @@ function judgmentButtonClass(judgment: Judgment, selected: boolean) {
     return "btn btn-error";
   }
   return "btn btn-warning";
+}
+
+function annotationTabLabel(format: string, count: number) {
+  return count > 0 ? `${format} (${count})` : format;
 }
 
 function recordValue(value: string) {
@@ -106,8 +123,9 @@ export default function ActiveRecordPanel({
   const [failedJUnicode, setFailedJUnicode] = useState<string | null>(null);
   const [missingImageOrgCode, setMissingImageOrgCode] = useState<string | null>(null);
   const [missingImageGid, setMissingImageGid] = useState<string | null>(null);
-  const [currentImageFormat, setCurrentImageFormat] = useState<"gif" | "png">("gif");
-  const currentImageTabsName = useId();
+  const [currentImageFormat, setCurrentImageFormat] = useState<GlyphAnnotationImage>("gif");
+  const [drawCategory, setDrawCategory] = useState<GlyphAnnotationCategory>("shape");
+  const [hoveredAnnotationId, setHoveredAnnotationId] = useState<string | null>(null);
   const lastJudgmentClick = useRef<{
     recordId: string;
     time: number;
@@ -171,6 +189,20 @@ export default function ActiveRecordPanel({
     return () => controller.abort();
   }, [activeRecord?.unicode, activeGlyphSource, failedJUnicode]);
 
+  const annotations = review?.annotations ?? [];
+  const gifAnnotationCount = annotations.filter((a) => a.image === "gif").length;
+  const pngAnnotationCount = annotations.filter((a) => a.image === "png").length;
+  const currentImageMissing =
+    currentImageFormat === "gif"
+      ? missingImageOrgCode === activeRecord?.orgCode
+      : missingImageGid === activeRecord?.gid;
+
+  function updateAnnotations(next: GlyphAnnotation[]) {
+    if (activeRecord) {
+      onReviewChange(activeRecord.id, { annotations: next });
+    }
+  }
+
   function handleJudgmentClick(
     event: MouseEvent<HTMLButtonElement>,
     judgment: Judgment,
@@ -233,123 +265,139 @@ export default function ActiveRecordPanel({
               </div>
             </header>
 
-            <div className="mt-[18px] grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-              <div className="grid min-h-[190px] content-center justify-items-center rounded-box border border-base-300 bg-base-200 p-5">
-                <span className="text-xs font-bold text-base-content/60">
-                  Unicode字形（GlyphWiki・{useDefaultGlyph ? "既定源" : glyphSourceLabels[activeGlyphSource]}）
-                </span>
-                <Link
-                  href={glyphWikiPageUrl(activeRecord.unicode, displayedGlyphSource)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <img
-                    className="max-w-full object-contain"
-                    src={glyphWikiSvgUrl(activeRecord.unicode, displayedGlyphSource)}
-                    alt={activeRecord.glyphText}
-                    onError={() => {
-                      if (activeGlyphSource === "j" && !useDefaultGlyph) {
-                        setFailedJUnicode(activeRecord.unicode);
-                      }
-                    }}
-                  />
-                </Link>
-                {SHOW_GLYPH_SOURCE_SELECTOR ? (
-                  <div className="mt-2 flex gap-3">
-                    {(["j", "g", "t", "k", "v"] as GlyphSource[]).map((source) => (
-                      <div key={source} className="grid justify-items-center">
-                        <span className="text-[10px] font-bold text-base-content/50">
-                          {glyphSourceLabels[source]}
-                        </span>
-                        <button
-                          type="button"
-                          className={
-                            activeGlyphSource === source
-                              ? "rounded-box ring-2 ring-primary"
-                              : "rounded-box ring-1 ring-base-300"
-                          }
-                          onClick={() =>
-                            setGlyphSourceState({
-                              recordId: activeRecord.id,
-                              source,
-                            })
-                          }
-                        >
-                          <img
-                            className="h-8 w-8 object-contain"
-                            src={glyphWikiSvgUrl(activeRecord.unicode, source)}
-                            alt={`${activeRecord.glyphText} ${glyphSourceLabels[source]}`}
-                          />
-                        </button>
-                      </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex h-7 items-center">
+                  <span className="text-xs font-bold text-base-content/60">
+                    Unicode字形（GlyphWiki・{useDefaultGlyph ? "既定源" : glyphSourceLabels[activeGlyphSource]}）
+                  </span>
+                </div>
+                <div className={glyphBoxClass}>
+                  <Link
+                    href={glyphWikiPageUrl(activeRecord.unicode, displayedGlyphSource)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      className="h-36 w-36 object-contain"
+                      src={glyphWikiSvgUrl(activeRecord.unicode, displayedGlyphSource)}
+                      alt={activeRecord.glyphText}
+                      onError={() => {
+                        if (activeGlyphSource === "j" && !useDefaultGlyph) {
+                          setFailedJUnicode(activeRecord.unicode);
+                        }
+                      }}
+                    />
+                  </Link>
+                  {SHOW_GLYPH_SOURCE_SELECTOR ? (
+                    <div className="mt-2 flex gap-3">
+                      {(["j", "g", "t", "k", "v"] as GlyphSource[]).map((source) => (
+                        <div key={source} className="grid justify-items-center">
+                          <span className="text-[10px] font-bold text-base-content/50">
+                            {glyphSourceLabels[source]}
+                          </span>
+                          <button
+                            type="button"
+                            className={
+                              activeGlyphSource === source
+                                ? "rounded-box ring-2 ring-primary"
+                                : "rounded-box ring-1 ring-base-300"
+                            }
+                            onClick={() =>
+                              setGlyphSourceState({
+                                recordId: activeRecord.id,
+                                source,
+                              })
+                            }
+                          >
+                            <img
+                              className="h-8 w-8 object-contain"
+                              src={glyphWikiSvgUrl(activeRecord.unicode, source)}
+                              alt={`${activeRecord.glyphText} ${glyphSourceLabels[source]}`}
+                            />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2">
+                <div className="flex h-7 items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-base-content/60">
+                    現在字形
+                  </span>
+                  <div className="tabs tabs-box tabs-xs" role="tablist" aria-label="現在字形の画像形式">
+                    {(["gif", "png"] as const).map((format) => (
+                      <button
+                        key={format}
+                        type="button"
+                        role="tab"
+                        aria-selected={currentImageFormat === format}
+                        className={currentImageFormat === format ? "tab tab-active" : "tab"}
+                        onClick={() => setCurrentImageFormat(format)}
+                      >
+                        {annotationTabLabel(
+                          format.toUpperCase(),
+                          format === "gif" ? gifAnnotationCount : pngAnnotationCount,
+                        )}
+                      </button>
                     ))}
                   </div>
-                ) : null}
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-bold text-base-content/60">
-                  現在字形
-                </span>
-                <div className="tabs tabs-lift">
-                  <input
-                    type="radio"
-                    name={currentImageTabsName}
-                    className="tab"
-                    aria-label="GIF"
-                    checked={currentImageFormat === "gif"}
-                    onChange={() => setCurrentImageFormat("gif")}
-                  />
-                  <div className="tab-content min-h-[190px] rounded-box border-base-300 bg-base-200 p-5">
-                    {currentImageFormat === "gif" ? (
-                      <div className="grid h-full content-center justify-items-center">
-                        {missingImageOrgCode === activeRecord.orgCode ? (
-                          <span className="text-sm text-base-content/60" role="status">
-                            画像がありません
-                          </span>
-                        ) : (
-                          <img
-                            className="h-32 max-w-full object-contain"
-                            src={`/images/${activeRecord.orgCode}.gif`}
-                            alt={activeRecord.orgCode}
-                            onError={() => setMissingImageOrgCode(activeRecord.orgCode)}
-                          />
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                  <input
-                    type="radio"
-                    name={currentImageTabsName}
-                    className="tab"
-                    aria-label="PNG"
-                    checked={currentImageFormat === "png"}
-                    onChange={() => setCurrentImageFormat("png")}
-                  />
-                  <div className="tab-content min-h-[190px] rounded-box border-base-300 bg-base-200 p-5">
-                    {currentImageFormat === "png" ? (
-                      <div className="grid h-full content-center justify-items-center">
-                        {missingImageGid === activeRecord.gid ? (
-                          <span className="text-sm text-base-content/60" role="status">
-                            画像がありません
-                          </span>
-                        ) : (
-                          <img
-                            className="h-32 max-w-full object-contain"
-                            src={`/png-images/${activeRecord.gid}.png`}
-                            alt={activeRecord.gid}
-                            onError={() => setMissingImageGid(activeRecord.gid)}
-                          />
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
+                </div>
+                <div className={glyphBoxClass}>
+                  {currentImageFormat === "gif" ? (
+                    missingImageOrgCode === activeRecord.orgCode ? (
+                      <span className="text-sm text-base-content/60" role="status">
+                        画像がありません
+                      </span>
+                    ) : (
+                      <AnnotatableImage
+                        src={`/images/${activeRecord.orgCode}.gif`}
+                        alt={activeRecord.orgCode}
+                        image="gif"
+                        annotations={annotations}
+                        drawCategory={drawCategory}
+                        hoveredId={hoveredAnnotationId}
+                        onChange={updateAnnotations}
+                        onError={() => setMissingImageOrgCode(activeRecord.orgCode)}
+                      />
+                    )
+                  ) : missingImageGid === activeRecord.gid ? (
+                    <span className="text-sm text-base-content/60" role="status">
+                      画像がありません
+                    </span>
+                  ) : (
+                    <AnnotatableImage
+                      src={`/png-images/${activeRecord.gid}.png`}
+                      alt={activeRecord.gid}
+                      image="png"
+                      annotations={annotations}
+                      drawCategory={drawCategory}
+                      hoveredId={hoveredAnnotationId}
+                      onChange={updateAnnotations}
+                      onError={() => setMissingImageGid(activeRecord.gid)}
+                    />
+                  )}
                 </div>
               </div>
             </div>
 
+            {/* Outside the glyph boxes so adding rectangles never shifts the glyphs. */}
+            {currentImageMissing ? null : (
+              <div className="mt-3">
+                <AnnotationControls
+                  image={currentImageFormat}
+                  annotations={annotations}
+                  drawCategory={drawCategory}
+                  onDrawCategoryChange={setDrawCategory}
+                  onHoverChange={setHoveredAnnotationId}
+                  onChange={updateAnnotations}
+                />
+              </div>
+            )}
 
-
-            <div className="mt-[18px] grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {(Object.keys(judgmentLabels) as Judgment[]).map((judgment) => (
                 <button
                   key={judgment}
@@ -365,7 +413,7 @@ export default function ActiveRecordPanel({
               ))}
             </div>
 
-            <label className="form-control mt-4">
+            <label className="form-control mt-4 grid gap-2">
               <span className="label-text font-bold">備考</span>
               <textarea
                 className="textarea textarea-bordered min-h-28 w-full"
@@ -377,10 +425,12 @@ export default function ActiveRecordPanel({
               />
             </label>
 
-            <ShortcutHints />
+            <div className="mt-2">
+              <ShortcutHints />
+            </div>
 
 
-            <section className="mt-4">
+            <section className="mt-6">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-sm font-bold text-base-content/70">
                   RECORDS

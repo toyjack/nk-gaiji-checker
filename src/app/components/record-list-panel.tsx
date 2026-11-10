@@ -1,5 +1,6 @@
 import { RefObject, useEffect, useRef, useState } from "react";
 import {
+  AnnotationFilter,
   GaijiRecord,
   ReviewEntry,
   ReviewStatusFilter,
@@ -13,8 +14,10 @@ type RecordListPanelProps = {
   records: GaijiRecord[];
   reviews: Record<string, ReviewEntry>;
   statusFilter: ReviewStatusFilter;
+  annotationFilter: AnnotationFilter;
   onActiveRecordChange: (recordId: string) => void;
   onStatusFilterChange: (statusFilter: ReviewStatusFilter) => void;
+  onAnnotationFilterChange: (annotationFilter: AnnotationFilter) => void;
 };
 
 export default function RecordListPanel({
@@ -23,8 +26,10 @@ export default function RecordListPanel({
   records,
   reviews,
   statusFilter,
+  annotationFilter,
   onActiveRecordChange,
   onStatusFilterChange,
+  onAnnotationFilterChange,
 }: RecordListPanelProps) {
   const [loadedCount, setLoadedCount] = useState(500);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -60,19 +65,33 @@ export default function RecordListPanel({
       <div className="card-body flex min-h-0 flex-col">
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
           <h2 className="card-title text-lg">リスト</h2>
-          <select
-            className="select select-bordered select-sm w-32"
-            value={statusFilter}
-            onChange={(event) =>
-              onStatusFilterChange(event.target.value as ReviewStatusFilter)
-            }
-          >
-            <option value="all">すべて</option>
-            <option value="todo">未判定</option>
-            <option value="suitable">適合</option>
-            <option value="unsuitable">不適合</option>
-            <option value="uncertain">要確認</option>
-          </select>
+          <div className="flex gap-2">
+            <select
+              className="select select-bordered select-sm w-32"
+              value={annotationFilter}
+              onChange={(event) =>
+                onAnnotationFilterChange(event.target.value as AnnotationFilter)
+              }
+              aria-label="囲みで絞り込み"
+            >
+              <option value="all">囲み：すべて</option>
+              <option value="annotated">囲みあり</option>
+              <option value="unannotated">囲みなし</option>
+            </select>
+            <select
+              className="select select-bordered select-sm w-32"
+              value={statusFilter}
+              onChange={(event) =>
+                onStatusFilterChange(event.target.value as ReviewStatusFilter)
+              }
+            >
+              <option value="all">すべて</option>
+              <option value="todo">未判定</option>
+              <option value="suitable">適合</option>
+              <option value="unsuitable">不適合</option>
+              <option value="uncertain">要確認</option>
+            </select>
+          </div>
         </div>
         <div
           ref={listRef}

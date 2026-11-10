@@ -24,6 +24,7 @@ import {
   DEFAULT_JK_URL_PREFIX,
 } from "./jotai-utils";
 import {
+  AnnotationFilter,
   AssignmentFilters,
   GaijiRecord,
   Judgment,
@@ -32,10 +33,13 @@ import {
   SavedWork,
 } from "./review-types";
 import {
+  buildResultCsv,
+  downloadCsv,
   downloadJson,
   formatTimestamp,
   initialAssignment,
   sanitizeFilenamePart,
+  sanitizeReviews,
 } from "./review-utils";
 
 type CheckerClientProps = {
@@ -120,6 +124,8 @@ export default function CheckerClient({
   const [activeId, setActiveId] = useState(records[0]?.id ?? "");
   const [statusFilter, setStatusFilter] =
     useState<ReviewStatusFilter>("all");
+  const [annotationFilter, setAnnotationFilter] =
+    useState<AnnotationFilter>("all");
   const [importMessage, setImportMessage] = useState("");
   const [rangeSplitCount, setRangeSplitCount] = useState(4);
   const activeRowRef = useRef<HTMLButtonElement | null>(null);
@@ -154,6 +160,13 @@ export default function CheckerClient({
   const visibleRecords = useMemo(() => {
     return assignedRecords.filter((record) => {
       const judgment = reviews[record.id]?.judgment;
+      const annotated = (reviews[record.id]?.annotations?.length ?? 0) > 0;
+      if (
+        (annotationFilter === "annotated" && !annotated) ||
+        (annotationFilter === "unannotated" && annotated)
+      ) {
+        return false;
+      }
       if (statusFilter === "all") {
         return true;
       }
@@ -162,7 +175,7 @@ export default function CheckerClient({
       }
       return judgment === statusFilter;
     });
-  }, [assignedRecords, reviews, statusFilter]);
+  }, [annotationFilter, assignedRecords, reviews, statusFilter]);
 
   const activeRecord =
     visibleRecords.find((record) => record.id === activeId) ??
@@ -338,6 +351,14 @@ export default function CheckerClient({
     downloadJson(`${assignee}_${formatTimestamp(now)}.json`, payload);
   }
 
+  function exportCsv() {
+    const assignee = sanitizeFilenamePart(assignment.assignee);
+    downloadCsv(
+      `${assignee}_${formatTimestamp(new Date())}.csv`,
+      buildResultCsv(assignedRecords, reviews),
+    );
+  }
+
   function handleImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
@@ -354,7 +375,7 @@ export default function CheckerClient({
         if (!isAssignmentFilters(parsed.assignment)) {
           throw new Error("assignment is invalid");
         }
-        setReviews(parsed.reviews as Record<string, ReviewEntry>);
+        setReviews(sanitizeReviews(parsed.reviews));
         setAssignment({
           assignee: parsed.assignment.assignee,
           orgCodeStart: parsed.assignment.orgCodeStart,
@@ -392,6 +413,7 @@ export default function CheckerClient({
             progress={progress}
             sourceFiles={sourceFiles}
             onExport={exportWork}
+            onExportCsv={exportCsv}
             onImport={handleImport}
           />
         </aside>
@@ -409,8 +431,10 @@ export default function CheckerClient({
             records={visibleRecords}
             reviews={reviews}
             statusFilter={statusFilter}
+            annotationFilter={annotationFilter}
             onActiveRecordChange={setActiveId}
             onStatusFilterChange={setStatusFilter}
+            onAnnotationFilterChange={setAnnotationFilter}
           />
         </section>
       </section>
