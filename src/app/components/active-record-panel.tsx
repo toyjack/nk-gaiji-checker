@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import { MouseEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 import { GaijiRecord, Judgment, ReviewEntry } from "../review-types";
 import { judgmentLabels } from "../review-utils";
 import ShortcutHints from "./shortcut-hints";
@@ -105,6 +105,9 @@ export default function ActiveRecordPanel({
   }>({ recordId: "", source: "j" });
   const [failedJUnicode, setFailedJUnicode] = useState<string | null>(null);
   const [missingImageOrgCode, setMissingImageOrgCode] = useState<string | null>(null);
+  const [missingImageGid, setMissingImageGid] = useState<string | null>(null);
+  const [currentImageFormat, setCurrentImageFormat] = useState<"gif" | "png">("gif");
+  const currentImageTabsName = useId();
   const lastJudgmentClick = useRef<{
     recordId: string;
     time: number;
@@ -283,22 +286,64 @@ export default function ActiveRecordPanel({
                   </div>
                 ) : null}
               </div>
-              <div className="grid min-h-[190px] content-center justify-items-center rounded-box border border-base-300 bg-base-200 p-5">
+              <div className="min-w-0">
                 <span className="text-xs font-bold text-base-content/60">
                   現在字形
                 </span>
-                {missingImageOrgCode === activeRecord.orgCode ? (
-                  <span className="text-sm text-base-content/60" role="status">
-                    画像がありません
-                  </span>
-                ) : (
-                  <img
-                    className="h-32 max-w-full object-contain"
-                    src={`/images/${activeRecord.orgCode}.gif`}
-                    alt={activeRecord.orgCode}
-                    onError={() => setMissingImageOrgCode(activeRecord.orgCode)}
+                <div className="tabs tabs-lift">
+                  <input
+                    type="radio"
+                    name={currentImageTabsName}
+                    className="tab"
+                    aria-label="GIF"
+                    checked={currentImageFormat === "gif"}
+                    onChange={() => setCurrentImageFormat("gif")}
                   />
-                )}
+                  <div className="tab-content min-h-[190px] rounded-box border-base-300 bg-base-200 p-5">
+                    {currentImageFormat === "gif" ? (
+                      <div className="grid h-full content-center justify-items-center">
+                        {missingImageOrgCode === activeRecord.orgCode ? (
+                          <span className="text-sm text-base-content/60" role="status">
+                            画像がありません
+                          </span>
+                        ) : (
+                          <img
+                            className="h-32 max-w-full object-contain"
+                            src={`/images/${activeRecord.orgCode}.gif`}
+                            alt={activeRecord.orgCode}
+                            onError={() => setMissingImageOrgCode(activeRecord.orgCode)}
+                          />
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                  <input
+                    type="radio"
+                    name={currentImageTabsName}
+                    className="tab"
+                    aria-label="PNG"
+                    checked={currentImageFormat === "png"}
+                    onChange={() => setCurrentImageFormat("png")}
+                  />
+                  <div className="tab-content min-h-[190px] rounded-box border-base-300 bg-base-200 p-5">
+                    {currentImageFormat === "png" ? (
+                      <div className="grid h-full content-center justify-items-center">
+                        {missingImageGid === activeRecord.gid ? (
+                          <span className="text-sm text-base-content/60" role="status">
+                            画像がありません
+                          </span>
+                        ) : (
+                          <img
+                            className="h-32 max-w-full object-contain"
+                            src={`/png-images/${activeRecord.gid}.png`}
+                            alt={activeRecord.gid}
+                            onError={() => setMissingImageGid(activeRecord.gid)}
+                          />
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
 
